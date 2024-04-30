@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Quotes{% endblock %}
+{% block content %}
+<nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand">Quotes</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar2">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="collapsibleNavbar2">
+        <ul class="navbar-nav">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">{{user}}</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="/logout"><i 
+                class="material-icons icon-align">logout</i>Logout</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+<div class="container">
+    {% for item in data %}
+    <div class="card mb-2">
+        <div class="card-body">
+            {{item["text"]}}
+            <em>--</em>
+            <em>{{item["author"]}}</em>
+        </div>
+        <div class="card-footer">
+            <div class="btn-group">
+                <button class="btn btn-outline-primary" onClick="edit(this.value)" value="{{item['_id']}}"><i 
+                    class="material-icons icon-align">mode_edit</i></button>
+                <a href="/delete/{{item['_id']}}" class="btn btn-outline-primary"><i
+                        class="material-icons icon-align">delete</i></a>
+            </div>
+            <div id="edit-{{item['_id']}}" class="container d-none mt-2">
+                <form action="/edit" method="POST">
+                    <input type="hidden" id="_id" name="_id" value="{{item['_id']}}" />
+                    <div class="mb-2 mt-2">
+                        <label for="text" class="form-label">Quote:</label>
+                        <textarea class="form-control" id="text" name="text">{{item['text']}}</textarea>
+                    </div>
+                    <div class="mb-2">
+                        <label for="author" class="form-label">Author:</label>
+                        <input type="text" class="form-control" id="author" name="author" value="{{item['author']}}">
+                    </div>
+                    <button type="submit" class="btn btn-primary mb-2 mt-2">Save</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    <button class="btn btn-outline-primary" onclick="add()"><i class="material-icons icon-align">add</i></a>
+</div>
+<div id="add-form" class="container d-none">
+    <form action="/add" method="POST">
+        <div class="mb-2">
+            <label for="text" class="form-label">Quote:</label>
+            <textarea class="form-control" id="text" name="text" placeholder="Quote..." value=""></textarea>
+        </div>
+        <div class="mb-2">
+            <label for="author" class="form-label">Author:</label>
+            <input type="text" class="form-control" id="author" name="author" placeholder="Author...">
+        </div>
+
+        <button type="submit" class="btn btn-primary mb-2">Add</button>
+    </form>
+</div>
+
+<script>
+    function add() {
+        addForm = document.querySelector('#add-form')
+        if (addForm.classList.contains('d-none')) {
+            addForm.classList.remove('d-none');
+        } else {
+            addForm.classList.add('d-none');
+        }
+    }
+
+    function edit(id) {
+        editForm = document.querySelector('#edit-' + id);
+        console.log(editForm);
+        if (editForm.classList.contains('d-none')) {
+            editForm.classList.remove('d-none');
+        } else {
+            editForm.classList.add('d-none');
+        }
+    }
+</script>
+{% endblock %}

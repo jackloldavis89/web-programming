@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<div class="h-100 d-flex align-items-center justify-content-center">
+    <div class="border p-3 m-2">
+    <h1>Login</h1>
+    <form action="/login" method="POST">
+        <table class="table table-borderless table-sm">
+            <tr>
+                <td>
+                    <label for="User">Username</label>
+                </td>
+                <td>
+                    <input type="text" id="user" name="user" />
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <label for="User">Password</label>
+                </td>
+                <td>
+                    <input type="password" id="password" name="password" />
+                </td>
+        </table>
+        <div class="btn-group mx-auto">
+            <button class="btn btn-primary" type="submit">Login</button>
+            <a href="/register" class="btn btn-secondary">Sign up now!</a>
+        </div>
+    </form>
+</div>
+</div>
+{% endblock %}

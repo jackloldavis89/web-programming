@@ -3,8 +3,8 @@ import json
 from mongita import MongitaClientDisk
 
 quotes_data = [
-    {"text": "I'm hungry. When's lunch?", "author": "Dorothy"},
-    {"text": "You threw that ball. You go get it.", "author": "Suzy"},
+    {"text": "I'm hungry. When's lunch?", "author": "Dorothy","owner":"Greg"},
+    {"text": "You threw that ball. You go get it.", "author": "Suzy", "owner":"Dorothy"},
 ]
 
 # create a mongita client connection
@@ -24,3 +24,4 @@ quotes_collection.insert_many(quotes_data)
 
 # make sure the quotes are there
 print(quotes_collection.count_documents({}))
+

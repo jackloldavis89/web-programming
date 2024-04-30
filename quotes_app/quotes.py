@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, make_response, redirect
 from mongita import MongitaClientDisk
 from bson import ObjectId
+from passwords import hash_password, check_password 
+#hash_password(password) check_password(password, saved_hashed_password, salt)
 
 app = Flask(__name__)
 
@@ -49,6 +51,39 @@ def get_quotes():
     response.set_cookie("session_id", session_id)
     return response
 
+@app.route("/register", methods=["GET"])
+def get_register():
+    session_id = request.cookies.get("session_id", None)
+    if session_id:
+        return redirect("/quotes")
+    return render_template("register.html")
+
+@app.route("/register", methods=["POST"])
+def post_register():
+    user = request.form.get("user", "")
+    password = request.form.get("password", "")
+    # open the user collection
+    user_collection = user_db.user_collection
+    user_data = list(user_collection.find({"user": user}))
+    if len(user_data) != 0: #if user already exists
+        response = redirect("/register")
+        response.delete_cookie("session_id")
+        return response
+    #hash_password(password) check_password(password, saved_hashed_password, salt)
+    hashed_password, salt = hash_password(password)
+    user_data = {"user": user, "hashed_pass": hashed_password, "salt": salt}
+    user_collection.insert_one(user_data)
+    print(user_collection.find_one({"hashed_pass": hashed_password}))
+    session_id = str(uuid.uuid4())
+    # open the session collection
+    session_collection = session_db.session_collection
+    # insert the user
+    session_collection.delete_one({"session_id": session_id})
+    session_data = {"session_id": session_id, "user": user}
+    session_collection.insert_one(session_data)
+    response = redirect("/quotes")
+    response.set_cookie("session_id", session_id)
+    return response
 
 @app.route("/login", methods=["GET"])
 def get_login():
@@ -62,14 +97,20 @@ def get_login():
 @app.route("/login", methods=["POST"])
 def post_login():
     user = request.form.get("user", "")
+    password = request.form.get("password", "")
     # open the user collection
     user_collection = user_db.user_collection
     # look for the user
     user_data = list(user_collection.find({"user": user}))
-    if len(user_data) != 1:
+    if len(user_data) != 1: #if user not found, or more than one user found
+        response = redirect("/register")
+        response.delete_cookie("session_id")
+        return response
+    if(check_password(password, user_data[0]["hashed_pass"], user_data[0]["salt"]) == False): #if password is wrong
         response = redirect("/login")
         response.delete_cookie("session_id")
         return response
+    #if all checks (user and password) have passed
     session_id = str(uuid.uuid4())
     # open the session collection
     session_collection = session_db.session_collection
@@ -94,15 +135,6 @@ def get_logout():
     response = redirect("/login")
     response.delete_cookie("session_id")
     return response
-
-
-@app.route("/add", methods=["GET"])
-def get_add():
-    session_id = request.cookies.get("session_id", None)
-    if not session_id:
-        response = redirect("/login")
-        return response
-    return render_template("add_quote.html")
 
 
 @app.route("/add", methods=["POST"])
@@ -132,24 +164,6 @@ def post_add():
         quotes_collection.insert_one(quote_data)
     # usually do a redirect('....')
     return redirect("/quotes")
-
-
-@app.route("/edit/<id>", methods=["GET"])
-def get_edit(id=None):
-    session_id = request.cookies.get("session_id", None)
-    if not session_id:
-        response = redirect("/login")
-        return response
-    if id:
-        # open the quotes collection
-        quotes_collection = quotes_db.quotes_collection
-        # get the item
-        data = quotes_collection.find_one({"_id": ObjectId(id)})
-        data["id"] = str(data["_id"])
-        return render_template("edit_quote.html", data=data)
-    # return to the quotes page
-    return redirect("/quotes")
-
 
 @app.route("/edit", methods=["POST"])
 def post_edit():
@@ -184,3 +198,5 @@ def get_delete(id=None):
         quotes_collection.delete_one({"_id": ObjectId(id)})
     # return to the quotes page
     return redirect("/quotes")
+
+app.run(port=5000, debug=True)
