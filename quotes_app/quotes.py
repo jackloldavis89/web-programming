@@ -17,9 +17,42 @@ comments_db = client.comments_db
 
 import uuid
 
+@app.route("/search", methods=["GET"])
+def get_search_results():
+    session_id = request.cookies.get("session_id", None)
+    if not session_id:
+        response = redirect("/login")
+        return response
+    session_collection = session_db.session_collection
+    # get the data for this session
+    session_data = list(session_collection.find({"session_id": session_id}))[0]
+    # open the quotes collection
+    quotes_collection = quotes_db.quotes_collection
+    # load the data
+    data = list(quotes_collection.find({}))
+    filtered_data = []
+    for item in data:
+        item["_id"] = str(item["_id"])
+        item["object"] = ObjectId(item["_id"])
+        item["comments"] = list(comments_db.comments_collection.find({"quote_id": item["_id"]}))[::-1]
+        if item["access"] == "Private" and item["owner"] != session_data["user"]:
+            print("Private quote, not displayed")
+        else:
+            if request.args.get("phrase") in item["text"]:
+                filtered_data.append(item)
+
+    html = render_template(
+        "quotes.html",
+        data=filtered_data[::-1],
+        user=session_data["user"],
+        page="Search",
+    )
+    response = make_response(html)
+    response.set_cookie("session_id", session_id)
+    return response
+
 @app.route("/", methods=["GET"])
 @app.route("/quotes", methods=["GET"])
-@app.route("/myquotes", methods=["GET"])
 def get_quotes():
     session_id = request.cookies.get("session_id", None)
     if not session_id:
@@ -41,6 +74,7 @@ def get_quotes():
     # load the data
     rule = request.url_rule
     page_display = ""
+    data = []
     if rule.rule == "/myquotes":
         data = list(quotes_collection.find({"owner": user}))
         page_display = "My Quotes"
@@ -50,13 +84,11 @@ def get_quotes():
     for item in data:
         item["_id"] = str(item["_id"])
         item["object"] = ObjectId(item["_id"])
-        item["comments"] = list(comments_db.comments_collection.find({"quote_id": item["_id"]}))[::-1]
     # display the data
     html = render_template(
         "quotes.html",
-        data=data[::-1],
+        data=data,
         user=user,
-        page=page_display,
     )
     response = make_response(html)
     response.set_cookie("session_id", session_id)
@@ -147,45 +179,6 @@ def get_logout():
     response.delete_cookie("session_id")
     return response
 
-@app.route("/comment", methods=["POST"])
-def post_comment():
-    session_id = request.cookies.get("session_id", None)
-    if not session_id:
-        response = redirect("/login")
-        return response
-    # open the session collection
-    session_collection = session_db.session_collection
-    # get the data for this session
-    session_data = list(session_collection.find({"session_id": session_id}))
-    if len(session_data) == 0:
-        response = redirect("/logout")
-        return response
-    assert len(session_data) == 1
-    session_data = session_data[0]
-    # get some information from the session
-    user = session_data.get("user", "unknown user")
-    text = request.form.get("text", "")
-    quote_id = request.form.get("quoteID", "")
-    if text != "" and quote_id != "":
-        #if quote owner
-        quote_collection = quotes_db.quotes_collection
-        quote = quote_collection.find_one({"_id": quote_id})
-        # open the comments collection
-        comments_collection = comments_db.comments_collection
-        # insert the comment
-        print(quote)
-        if quote["allow_comments"] == "true":
-            comment_data = {"owner": user, "text": text, "quote_id": quote_id}
-            comments_collection.insert_one(comment_data)
-            print(comment_data)
-        else:
-            print("Comments not allowed for this quote")
-    # usually do a redirect('....')
-    page = request.form.get("page", "")
-    if page == "My Quotes":
-        return redirect("/myquotes")
-    else:
-        return redirect("/quotes")
 
 @app.route("/add", methods=["POST"])
 def post_add():
@@ -206,20 +199,14 @@ def post_add():
     user = session_data.get("user", "unknown user")
     text = request.form.get("text", "")
     author = request.form.get("author", "")
-    access = request.form.get("access", "")
-    allow_comments = request.form.get("allowComments", "false")
-    if text != "" and author != "" and access != "":
+    if text != "" and author != "":
         # open the quotes collection
         quotes_collection = quotes_db.quotes_collection
         # insert the quote
-        quote_data = {"owner": user, "text": text, "author": author, "access": access, "allow_comments": allow_comments}
-        print(quote_data)
+        quote_data = {"owner": user, "text": text, "author": author}
         quotes_collection.insert_one(quote_data)
     # usually do a redirect('....')
-    if access == "Private":
-        return redirect("/myquotes")
-    else:
-        return redirect("/quotes")
+    return redirect("/quotes")
 
 @app.route("/edit", methods=["POST"])
 def post_edit():
@@ -230,80 +217,28 @@ def post_edit():
     _id = request.form.get("_id", None)
     text = request.form.get("text", "")
     author = request.form.get("author", "")
-    access = request.form.get("access", "")
-    allow_comments = request.form.get("allowComments", "")
     if _id:
-        session_collection = session_db.session_collection
-        session_data = list(session_collection.find({"session_id": session_id}))
-        session_data = session_data[0]
-        user = session_data.get("user", "unknown user")
         # open the quotes collection
         quotes_collection = quotes_db.quotes_collection
-        quote = quotes_db.quotes_collection.find_one({"_id": ObjectId(_id)})
         # update the values in this particular record
-        if user == quote["owner"]:
-            values = {"$set": {"text": text, "author": author, "access": access, "allow_comments": allow_comments}}
-            print(values)
-            data = quotes_collection.update_one({"_id": ObjectId(_id)}, values)
+        values = {"$set": {"text": text, "author": author}}
+        data = quotes_collection.update_one({"_id": ObjectId(_id)}, values)
     # do a redirect('....')
-    if access == "Private":
-        return redirect("/myquotes")
-    else:
-        return redirect("/quotes")
+    return redirect("/quotes")
 
 
 @app.route("/delete", methods=["GET"])
 @app.route("/delete/<id>", methods=["GET"])
 def get_delete(id=None):
     session_id = request.cookies.get("session_id", None)
-    print(request)
     if not session_id:
         response = redirect("/login")
         return response
     if id:
-        session_collection = session_db.session_collection
-        session_data = list(session_collection.find({"session_id": session_id}))
-        session_data = session_data[0]
-        user = session_data.get("user", "unknown user")
         # open the quotes collection
         quotes_collection = quotes_db.quotes_collection
-        comment_collection = comments_db.comments_collection
-        quote = quotes_db.quotes_collection.find_one({"_id": ObjectId(id)})
-        print(quote)
-        if user == quote["owner"]:
-            comment_collection.delete_many({"quote_id": ObjectId(id)})
-            quotes_collection.delete_one({"_id": ObjectId(id)})
         # delete the item
-        # quotes_collection.delete_one({"_id": ObjectId(id)})
-    # return to the quotes page
-    return redirect("/myquotes")
-
-@app.route("/delete/comment/<id>", methods=["GET"])
-def get_delete_comment(id=None):
-    session_id = request.cookies.get("session_id", None)
-    if not session_id:
-        response = redirect("/login")
-        return response
-    if id:
-        # get some information from the session
-        session_collection = session_db.session_collection
-        session_data = list(session_collection.find({"session_id": session_id}))
-        session_data = session_data[0]
-        user = session_data.get("user", "unknown user")
-
-        #if comment owner
-        comment_collection = comments_db.comments_collection
-        comment = comment_collection.find_one({"_id": ObjectId(id)})
-        if user == comment["owner"]:
-            comment_collection.delete_one({"_id": ObjectId(id)})
-            print("Comment deleted by comment owner")
-
-        #if quote owner
-        quote_collection = quotes_db.quotes_collection
-        quote = quote_collection.find_one({"_id": comment["quote_id"]})
-        if user == quote["owner"]:
-            comment_collection.delete_one({"_id": ObjectId(id)})
-            print("Comment deleted by quote owner")
+        quotes_collection.delete_one({"_id": ObjectId(id)})
     # return to the quotes page
     return redirect("/quotes")
 

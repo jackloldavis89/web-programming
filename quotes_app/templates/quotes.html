@@ -69,6 +69,14 @@
 <script src="{{url_for('static', filename='toggle-forms.js')}}"></script> <!-- HUZZAH! Vue implemented! -->
 
 <div class="container" id="v-cards">
+    <form action="/search" method="GET">
+        <div class="input-group mb-3">
+            <span class="input-group-text" id="basic-addon1">Search</span>
+            <input type="text" class="form-control" placeholder="Search..." name="phrase">
+            <button class="btn btn-outline-primary" type="submit"><i class="material-icons icon-align">search</i></button>
+        </div>
+    </form>
+
     {% for item in data %}
     <div class="card mb-4">
         <div class="card-header">
