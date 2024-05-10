@@ -5,16 +5,22 @@
 <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand">Quotes</a>
+
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar2">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="collapsibleNavbar2">
             <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link active" aria-current="page">{{page}}</a>
+                </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">{{user}}</a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="/friends"><i
-                                    class="material-icons icon-align">group</i>Friends</a></li>
+                        <li><a class="dropdown-item" href="/quotes"><i class="material-icons icon-align"></i>Public</a>
+                        </li>
+                        <li><a class="dropdown-item" href="/myquotes"><i class="material-icons icon-align"></i>My
+                                Quotes</a></li>
                         <li><a class="dropdown-item" href="/logout"><i
                                     class="material-icons icon-align">logout</i>Logout</a></li>
                     </ul>
@@ -24,16 +30,56 @@
     </div>
 </nav>
 
+<div id="v-add-form" class="container">
+    <button @click="formDisplay" class="btn btn-outline-primary mb-2"><i
+            class="material-icons icon-align">add</i></button>
+    <div id="add-form" class="container" v-if="display">
+        <form action="/add" method="POST">
+            <div class="mb-2">
+                <label for="text" class="form-label">Quote:</label>
+                <textarea class="form-control" id="text" name="text" placeholder="Quote..." value=""></textarea>
+            </div>
+            <div class="mb-2">
+                <label for="author" class="form-label">Author:</label>
+                <input type="text" class="form-control" id="author" name="author" placeholder="Author...">
+            </div>
+
+            <div class="form-check form-check-inline access-radio">
+                <input class="form-check-input" type="radio" name="access" value="Private" checked>
+                <label class="form-check-label">
+                    Private
+                </label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="access" value="Public">
+                <label class="form-check-label">
+                    Public
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="true" id="flexCheckDefault" name="allowComments">
+                <label class="form-check-label" for="flexCheckDefault">
+                    Comments
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary mb-2 mt-2">Add</button>
+        </form>
+    </div>
+</div>
+<script src="{{url_for('static', filename='toggle-forms.js')}}"></script> <!-- HUZZAH! Vue implemented! -->
+
 <div class="container" id="v-cards">
     {% for item in data %}
     <div class="card mb-4">
         <div class="card-header">
             {{item["owner"]}}
             <div class="btn-group float-end">
-                <button class="btn btn-outline-primary" onClick="toggleEdit(this.value)" value="{{item['_id']}}"><i
-                        class="material-icons icon-align">mode_edit</i></button>
-                <a href="/delete/{{item['_id']}}" class="btn btn-outline-primary"><i
+                {% if user == item["owner"] %}
+                <button class="btn btn-outline-primary btn-sm" onClick="toggleEdit(this)" value="{{item['_id']}}"
+                    value1="{{item['access']}}"><i class="material-icons icon-align">mode_edit</i></button>
+                <a href="/delete/{{item['_id']}}" class="btn btn-outline-primary btn-sm"><i
                         class="material-icons icon-align">delete</i></a>
+                {% endif %}
             </div>
             <div id="edit-{{item['_id']}}" class="container d-none mt-2">
                 <form action="/edit" method="POST"> <!-- The edit form -->
@@ -49,23 +95,22 @@
                     <div class="form-check form-check-inline access-radio">
                         <input class="form-check-input" type="radio" name="access" value="Private">
                         <label class="form-check-label">
-                          Private
+                            Private
                         </label>
-                      </div>
-                      <div class="form-check form-check-inline">
+                    </div>
+                    <div class="form-check form-check-inline">
                         <input class="form-check-input" type="radio" name="access" value="Public">
                         <label class="form-check-label">
-                          Public
+                            Public
                         </label>
-                      </div>
-                      <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="access" value="Friends">
-                        <label class="form-check-label">
-                          Friends
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="true" id="flexCheckDefault"
+                            name="allowComments">
+                        <label class="form-check-label" for="flexCheckDefault">
+                            Comments
                         </label>
-                      </div>
-                      
-                      <br>
+                    </div>
                     <button type="submit" class="btn btn-primary mb-2 mt-2">Save</button>
                 </form>
             </div>
@@ -74,16 +119,26 @@
             {{item["text"]}}
             <em>--</em>
             <em>{{item["author"]}}</em>
+            {% if item["allow_comments"] == "true" %}
             <hr>
+            {% endif %}
             {% if item["comments"] %}
-            <em>Comments ({{item["comments"]|length}})</em> <button class="btn btn-outline-primary" onClick="toggleComments(this.value)"
-                value="{{item['_id']}}"><i class="material-icons icon-align">expand_more</i></button>
+            <em>Comments ({{item["comments"]|length}})</em> <button class="btn btn-outline-primary"
+                onClick="toggleComments(this.value)" value="{{item['_id']}}"><i
+                    class="material-icons icon-align">expand_more</i></button>
 
             <div id="comments-{{item['_id']}}" class="container d-none">
                 {% for comment in item["comments"] %}
 
                 <div class="card mt-2">
                     <div class="card-header">
+
+                        <div class="btn-group float-end">
+                            {% if user == comment["owner"] or user == item["owner"] %}
+                            <a href="/delete/comment/{{comment['_id']}}" class="btn btn-outline-primary btn-sm"><i
+                                    class="material-icons icon-align">delete</i></a>
+                            {% endif %}
+                        </div>
                         <i>{{comment['owner']}}</i>
                     </div>
                     <div class="card-body">
@@ -93,62 +148,28 @@
                 {% endfor %}
             </div>
 
-            
+
             {% else %}
+            {% if item["allow_comments"] == "true" %}
             No comments yet. <i class="material-icons icon-align">sentiment_dissatisfied</i>
+            {% endif %}
             {% endif %}
             </ul>
         </div>
+        {% if item["allow_comments"] == "true" %}
         <div class="card-footer">
             <!-- Comments -->
-
             <form action="/comment" method="POST">
                 <div class="mb-2">
                     <textarea class="form-control" id="text" name="text" placeholder="Comment..." value=""></textarea>
                 </div>
                 <input type="hidden" id="quoteID" name="quoteID" value="{{item['_id']}}" />
+                <input type="hidden" id="page" name="page" value="{{page}}" />
                 <button type="submit" class="btn btn-primary mb-2">Add Comment</button>
             </form>
-
         </div>
+        {% endif %}
     </div>
     {% endfor %}
 </div>
-<div id="v-add-form" class="container">
-    <button @click="formDisplay" class="btn btn-outline-primary"><i class="material-icons icon-align">add</i></button>
-    <div id="add-form" class="container" v-if="display">
-        <form action="/add" method="POST">
-            <div class="mb-2">
-                <label for="text" class="form-label">Quote:</label>
-                <textarea class="form-control" id="text" name="text" placeholder="Quote..." value=""></textarea>
-            </div>
-            <div class="mb-2">
-                <label for="author" class="form-label">Author:</label>
-                <input type="text" class="form-control" id="author" name="author" placeholder="Author...">
-            </div>
-
-            <div class="form-check form-check-inline access-radio">
-                <input class="form-check-input" type="radio" name="access" value="Private">
-                <label class="form-check-label">
-                  Private
-                </label>
-              </div>
-              <div class="form-check form-check-inline">
-                <input class="form-check-input" type="radio" name="access" value="Public">
-                <label class="form-check-label">
-                  Public
-                </label>
-              </div>
-              <div class="form-check form-check-inline">
-                <input class="form-check-input" type="radio" name="access" value="Friends">
-                <label class="form-check-label">
-                  Friends
-                </label>
-              </div>
-              <br>
-            <button type="submit" class="btn btn-primary mb-2 mt-2">Add</button>
-        </form>
-    </div>
-</div>
-<script src="{{url_for('static', filename='toggle-forms.js')}}"></script> <!-- HUZZAH! Vue implemented! -->
 {% endblock %}

@@ -17,8 +17,11 @@ const app = Vue.createApp({
     delimiters : ['[[', ']]'], // Used to bypass flask's jinja2 delimiters
 }).mount("#v-add-form");
 
-toggleEdit = (id) => {
-    document.getElementById(`edit-${id}`).classList.toggle('d-none');
+toggleEdit = (obj) => {
+    thisEdit = document.getElementById(`edit-${obj.attributes.value.value}`)
+    thisEdit.classList.toggle('d-none');
+    thisEdit.children[0].elements['access'].value = obj.attributes.value1.value
+    
 }
 
 accessEdit = (radio) => {
