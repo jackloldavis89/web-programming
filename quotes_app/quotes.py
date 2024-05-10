@@ -53,6 +53,7 @@ def get_search_results():
 
 @app.route("/", methods=["GET"])
 @app.route("/quotes", methods=["GET"])
+@app.route("/myquotes", methods=["GET"])
 def get_quotes():
     session_id = request.cookies.get("session_id", None)
     if not session_id:
